@@ -2382,6 +2382,87 @@ import {fakeAsync, flushMicrotasks} from '../../testing/src/fake_async';
            ]);
          });
 
+      it('should emulate a leave animation on a nested sub component\'s inner elements when a parent leave animation occurs with animateChild',
+         () => {
+           @Component({
+             selector: 'ani-cmp',
+             template: `
+            <div @myAnimation *ngIf="exp" class="parent">
+              <child-cmp></child-cmp>
+            </div>
+          `,
+             animations: [
+               trigger(
+                   'myAnimation',
+                   [
+                     transition(
+                         ':leave',
+                         [
+                           query('@*', animateChild()),
+                         ]),
+                   ]),
+             ]
+           })
+           class ParentCmp {
+             public exp: boolean = true;
+           }
+
+           @Component({
+             selector: 'child-cmp',
+             template: `
+               <nested-child-cmp></nested-child-cmp>
+             `
+           })
+           class ChildCmp {
+           }
+
+           @Component({
+             selector: 'nested-child-cmp',
+             template: `
+               <section>
+                 <div class="inner-div" @myChildAnimation></div>
+               </section>
+             `,
+             animations: [
+               trigger(
+                   'myChildAnimation',
+                   [
+                     transition(
+                         ':leave',
+                         [
+                           style({opacity: 0}),
+                           animate('1s', style({opacity: 1})),
+                         ]),
+                   ]),
+             ]
+           })
+           class NestedChildCmp {
+           }
+
+           TestBed.configureTestingModule({declarations: [ParentCmp, ChildCmp, NestedChildCmp]});
+
+           const engine = TestBed.get(ɵAnimationEngine);
+           const fixture = TestBed.createComponent(ParentCmp);
+           const cmp = fixture.componentInstance;
+
+           cmp.exp = true;
+           fixture.detectChanges();
+
+           cmp.exp = false;
+           fixture.detectChanges();
+
+           let players = engine.players;
+           expect(players.length).toEqual(1);
+           const [player] = players;
+
+           expect(player.element.classList.contains('parent')).toBeTruthy();
+           expect(player.getRealPlayer().element.classList.contains('inner-div')).toBeTruthy();
+           expect(player.getRealPlayer().keyframes).toEqual([
+             {opacity: '0', offset: 0},
+             {opacity: '1', offset: 1},
+           ]);
+         });
+
       it('should not cause a removal of inner @trigger DOM nodes when a parent animation occurs',
          fakeAsync(() => {
            @Component({
