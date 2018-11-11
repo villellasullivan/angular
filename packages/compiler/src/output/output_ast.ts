@@ -169,8 +169,9 @@ export abstract class Expression {
     return new InvokeMethodExpr(this, name, params, null, sourceSpan);
   }
 
-  callFn(params: Expression[], sourceSpan?: ParseSourceSpan|null): InvokeFunctionExpr {
-    return new InvokeFunctionExpr(this, params, null, sourceSpan);
+  callFn(params: Expression[], sourceSpan?: ParseSourceSpan|null, pure: boolean = false):
+      InvokeFunctionExpr {
+    return new InvokeFunctionExpr(this, params, null, sourceSpan, pure);
   }
 
   instantiate(params: Expression[], type?: Type|null, sourceSpan?: ParseSourceSpan|null):
@@ -1060,7 +1061,7 @@ export class AstTransformer implements StatementVisitor, ExpressionVisitor {
     return this.transformExpr(
         new InvokeFunctionExpr(
             ast.fn.visitExpression(this, context), this.visitAllExpressions(ast.args, context),
-            ast.type, ast.sourceSpan),
+            ast.type, ast.sourceSpan, ast.pure),
         context);
   }
 

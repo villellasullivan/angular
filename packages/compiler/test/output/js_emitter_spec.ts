@@ -70,6 +70,8 @@ const externalModuleIdentifier = new o.ExternalReference(anotherModuleUrl, 'some
 
     it('should invoke functions and methods and constructors', () => {
       expect(emitStmt(o.variable('someFn').callFn([o.literal(1)]).toStmt())).toEqual('someFn(1);');
+      expect(emitStmt(o.variable('someFn').callFn([o.literal(1)], null, true).toStmt()))
+          .toEqual('/*@__PURE__*/someFn(1);');
       expect(emitStmt(o.variable('someObj').callMethod('someMethod', [o.literal(1)]).toStmt()))
           .toEqual('someObj.someMethod(1);');
       expect(emitStmt(o.variable('SomeClass').instantiate([o.literal(1)]).toStmt()))

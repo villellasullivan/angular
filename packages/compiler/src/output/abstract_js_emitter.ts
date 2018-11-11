@@ -100,6 +100,9 @@ export abstract class AbstractJsEmitterVisitor extends AbstractEmitterVisitor {
   }
   visitInvokeFunctionExpr(expr: o.InvokeFunctionExpr, ctx: EmitterVisitorContext): string|null {
     const fnExpr = expr.fn;
+    if (expr.pure) {
+      ctx.print(expr, '/*@__PURE__*/');
+    }
     if (fnExpr instanceof o.ReadVarExpr && fnExpr.builtin === o.BuiltinVar.Super) {
       ctx.currentClass !.parent !.visitExpression(this, ctx);
       ctx.print(expr, `.call(this`);
