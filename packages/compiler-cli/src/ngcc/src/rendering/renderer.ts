@@ -5,7 +5,7 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
-import {ConstantPool, Expression, Statement, WrappedNodeExpr, WritePropExpr} from '@angular/compiler';
+import {AbstractJsEmitterVisitor, ConstantPool, EmitterVisitorContext, Expression, ExternalExpr, Statement, WrappedNodeExpr, WritePropExpr} from '@angular/compiler';
 import {SourceMapConverter, commentRegex, fromJSON, fromMapFileSource, fromObject, fromSource, generateMapFileComment, mapFileCommentRegex, removeComments, removeMapFileComments} from 'convert-source-map';
 import {readFileSync, statSync} from 'fs';
 import MagicString from 'magic-string';
@@ -15,7 +15,7 @@ import * as ts from 'typescript';
 
 import {Decorator} from '../../../ngtsc/host';
 import {CompileResult} from '@angular/compiler-cli/src/ngtsc/transform';
-import {translateStatement, translateType} from '../../../ngtsc/translator';
+import {translateType} from '../../../ngtsc/translator';
 import {NgccImportManager} from './ngcc_import_manager';
 import {CompiledClass, CompiledFile, DecorationAnalyses} from '../analysis/decoration_analyzer';
 import {SwitchMarkerAnalyses, SwitchMarkerAnalysis} from '../analysis/switch_marker_analyzer';
@@ -305,10 +305,7 @@ export function mergeSourceMaps(
  */
 export function renderConstantPool(
     sourceFile: ts.SourceFile, constantPool: ConstantPool, imports: NgccImportManager): string {
-  const printer = ts.createPrinter();
-  return constantPool.statements.map(stmt => translateStatement(stmt, imports))
-      .map(stmt => printer.printNode(ts.EmitHint.Unspecified, stmt, sourceFile))
-      .join('\n');
+  return printAsJavaScript(constantPool.statements, sourceFile, imports);
 }
 
 /**
@@ -321,18 +318,13 @@ export function renderConstantPool(
  */
 export function renderDefinitions(
     sourceFile: ts.SourceFile, compiledClass: CompiledClass, imports: NgccImportManager): string {
-  const printer = ts.createPrinter();
   const name = (compiledClass.declaration as ts.NamedDeclaration).name !;
   const definitions =
       compiledClass.compilation
           .map(
-              c => c.statements.map(statement => translateStatement(statement, imports))
-                       .concat(translateStatement(
-                           createAssignmentStatement(name, c.name, c.initializer), imports))
-                       .map(
-                           statement =>
-                               printer.printNode(ts.EmitHint.Unspecified, statement, sourceFile))
-                       .join('\n'))
+              c => printAsJavaScript(
+                  c.statements.concat(createAssignmentStatement(name, c.name, c.initializer)),
+                  sourceFile, imports))
           .join('\n');
   return definitions;
 }
@@ -346,4 +338,44 @@ function createAssignmentStatement(
     receiverName: ts.DeclarationName, propName: string, initializer: Expression): Statement {
   const receiver = new WrappedNodeExpr(receiverName);
   return new WritePropExpr(receiver, propName, initializer).toStmt();
+}
+
+function printAsJavaScript(
+    statements: Statement[], sourceFile: ts.SourceFile, importManager: NgccImportManager): string {
+  const converter = new NgccJsEmitterVisitor(sourceFile, importManager);
+  const ctx = EmitterVisitorContext.createRoot();
+  converter.visitAllStatements(statements, ctx);
+
+  return ctx.toSource();
+}
+
+/**
+ * An emitter that transforms ngtsc's Angular AST into JavaScript.
+ * For `WrappedNodeExpr`, it is assumed that printing the TS node it represents using
+ * TypeScript's node printer produces valid JavaScript.
+ */
+class NgccJsEmitterVisitor extends AbstractJsEmitterVisitor {
+  private printer = ts.createPrinter();
+
+  constructor(private sourceFile: ts.SourceFile, private importManager: NgccImportManager) {
+    super();
+  }
+
+  visitExternalExpr(ast: ExternalExpr, ctx: EmitterVisitorContext): any {
+    const {name, moduleName} = ast.value;
+    if (moduleName) {
+      const prefix = this.importManager.generateNamedImport(moduleName, name !);
+      if (prefix) {
+        ctx.print(ast, `${prefix}.`);
+      }
+    }
+    ctx.print(ast, name !);
+    return null;
+  }
+
+  visitWrappedNodeExpr(ast: WrappedNodeExpr<any>, ctx: EmitterVisitorContext): any {
+    const code = this.printer.printNode(ts.EmitHint.Unspecified, ast.node, this.sourceFile);
+    ctx.print(ast, code);
+    return null;
+  }
 }
