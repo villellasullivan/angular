@@ -7,12 +7,12 @@
  */
 
 import {NgForOfContext} from '@angular/common';
-import {ElementRef, TemplateRef, ViewContainerRef} from '@angular/core';
+import {ElementRef, TemplateRef, ViewContainerRef, inject} from '@angular/core';
 
 import {EventEmitter} from '../..';
-
-import {AttributeMarker, QueryList, defineComponent, defineDirective, detectChanges} from '../../src/render3/index';
+import {AttributeMarker, ProvidersFeature, QueryList, defineComponent, defineDirective, detectChanges} from '../../src/render3/index';
 import {getNativeByIndex} from '../../src/render3/util';
+
 import {bind, container, containerRefreshEnd, containerRefreshStart, directiveInject, element, elementContainerEnd, elementContainerStart, elementEnd, elementProperty, elementStart, embeddedViewEnd, embeddedViewStart, load, loadQueryList, reference, registerContentQuery, template, text} from '../../src/render3/instructions';
 import {RenderFlags} from '../../src/render3/interfaces/definition';
 import {query, queryRefresh} from '../../src/render3/query';
@@ -203,6 +203,74 @@ describe('query', () => {
         const qList = (cmptInstance.query as QueryList<any>);
         expect(qList.length).toBe(0);
       });
+    });
+
+    describe('providers', () => {
+
+      it('should query for providers that are present on a directive', () => {
+
+        class Service {}
+        class Alias {}
+
+        class MyDirective {
+          constructor(public service: Service) {}
+
+          static ngComponentDef = defineDirective({
+            type: MyDirective,
+            selectors: [['myDir']],
+            factory: function MyDirective_Factory() { return new MyDirective(inject(Service)); },
+            features: [ProvidersFeature([Service, {provide: Alias, useExisting: Service}])],
+          });
+        }
+
+        /**
+         * <div myDir></div>
+         * class App {
+         *  @ViewChild(MyDirective) directive: MyDirective;
+         *  @ViewChild(Service) service: Service;
+         *  @ViewChild(Alias) alias: Alias;
+         * }
+         */
+        class App {
+          directive?: MyDirective;
+          service?: Service;
+          alias?: Alias;
+
+          static ngComponentDef = defineComponent({
+            type: App,
+            selectors: [['app']],
+            consts: 4,
+            vars: 0,
+            factory: function App_Factory() { return new App(); },
+            template: function App_Template(fs: RenderFlags, ctx: App) {
+              if (fs & RenderFlags.Create) {
+                element(3, 'myDir', ['myDir']);
+              }
+            },
+            viewQuery: function(rf: RenderFlags, ctx: App) {
+              let tmp: any;
+              if (rf & RenderFlags.Create) {
+                query(0, MyDirective, false);
+                query(1, Service, false);
+                query(2, Alias, false);
+              }
+              if (rf & RenderFlags.Update) {
+                queryRefresh(tmp = load<QueryList<any>>(0)) && (ctx.directive = tmp.first);
+                queryRefresh(tmp = load<QueryList<any>>(1)) && (ctx.service = tmp.first);
+                queryRefresh(tmp = load<QueryList<any>>(2)) && (ctx.alias = tmp.first);
+              }
+            },
+            directives: [MyDirective]
+          });
+        }
+
+        const componentFixture = new ComponentFixture(App);
+        const directive = componentFixture.component.directive !;
+        expect(directive).toBeDefined();
+        expect(componentFixture.component.service).toBe(directive.service);
+        expect(componentFixture.component.alias).toBe(directive.service);
+      });
+
     });
 
     describe('local names', () => {

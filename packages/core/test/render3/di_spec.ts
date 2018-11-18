@@ -1219,6 +1219,7 @@ describe('di', () => {
         expect(otherInjectorDir.injector.get(ElementRef).nativeElement).toBe(divElement);
         expect(otherInjectorDir.injector.get(InjectorDir)).toBe(injectorDir);
         expect(injectorDir.injector).not.toBe(otherInjectorDir.injector);
+        expect(injectorDir.injector.get(String, 'not found')).toBe('not found');
       });
 
     });

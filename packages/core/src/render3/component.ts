@@ -80,13 +80,6 @@ export interface CreateComponentOptions {
 /** See CreateComponentOptions.hostFeatures */
 type HostFeature = (<T>(component: T, componentDef: ComponentDef<T>) => void);
 
-// TODO: A hack to not pull in the NullInjector from @angular/core.
-export const NULL_INJECTOR: Injector = {
-  get: (token: any, notFoundValue?: any) => {
-    throw new Error('NullInjector: Not found: ' + stringify(token));
-  }
-};
-
 /**
  * Bootstraps a Component into an existing host element and returns an instance
  * of the component.

@@ -56,7 +56,10 @@ export function mainNgcc(args: string[]): number {
           format => transformer.transform(entryPoint, format, format === dtsTranformFormat));
     });
   } catch (e) {
-    console.error(e.stack);
+    console.error(e.message);
+    if (e.stack) {
+      console.error(e.stack);
+    }
     return 1;
   }
 

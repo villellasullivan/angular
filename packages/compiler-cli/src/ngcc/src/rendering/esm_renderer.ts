@@ -64,7 +64,7 @@ export class EsmRenderer extends Renderer {
           // Remove the entire statement
           const statement = findStatement(containerNode);
           if (statement) {
-            output.remove(statement.getFullStart(), statement.getEnd());
+            output.overwrite(statement.getFullStart(), statement.getEnd(), '', {contentOnly: true});
           }
         } else {
           nodesToRemove.forEach(node => {
@@ -72,7 +72,7 @@ export class EsmRenderer extends Renderer {
             const end = (output.slice(node.getEnd(), node.getEnd() + 1) === ',') ?
                 node.getEnd() + 1 :
                 node.getEnd();
-            output.remove(node.getFullStart(), end);
+            output.overwrite(node.getFullStart(), end, '', {contentOnly: true});
           });
         }
       }

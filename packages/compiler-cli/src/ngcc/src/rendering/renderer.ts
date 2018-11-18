@@ -363,13 +363,10 @@ class NgccJsEmitterVisitor extends AbstractJsEmitterVisitor {
 
   visitExternalExpr(ast: ExternalExpr, ctx: EmitterVisitorContext): any {
     const {name, moduleName} = ast.value;
-    if (moduleName) {
-      const prefix = this.importManager.generateNamedImport(moduleName, name !);
-      if (prefix) {
-        ctx.print(ast, `${prefix}.`);
-      }
+    if (name !== null && moduleName !== null) {
+      const {moduleImport, symbol} = this.importManager.generateNamedImport(moduleName, name);
+      ctx.print(ast, moduleImport ? `${moduleImport}.${symbol}` : symbol);
     }
-    ctx.print(ast, name !);
     return null;
   }
 

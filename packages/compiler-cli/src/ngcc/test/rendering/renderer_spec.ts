@@ -120,7 +120,7 @@ describe('Renderer', () => {
 
     it('should render as JavaScript', () => {
       const {renderer, program, decorationAnalyses, switchMarkerAnalyses} =
-          createTestRenderer(COMPONENT_FILE);
+          createTestRenderer([COMPONENT_FILE]);
       renderer.renderProgram(program, decorationAnalyses, switchMarkerAnalyses);
       const addDefinitionsSpy = renderer.addDefinitions as jasmine.Spy;
       expect(addDefinitionsSpy.calls.first().args[2])
@@ -240,7 +240,7 @@ A.ngDirectiveDef = ɵngcc0.ɵdefineDirective({type:A,selectors:[['','a','']],fac
         renderer.renderProgram(program, decorationAnalyses, switchMarkerAnalyses);
         const addDefinitionsSpy = renderer.addDefinitions as jasmine.Spy;
         expect(addDefinitionsSpy.calls.first().args[2])
-            .toContain(`/*@__PURE__*/ ɵngcc0.setClassMetadata(`);
+            .toContain(`/*@__PURE__*/ɵngcc0.setClassMetadata(`);
         const addImportsSpy = renderer.addImports as jasmine.Spy;
         expect(addImportsSpy.calls.first().args[1]).toEqual([{name: './r3_symbols', as: 'ɵngcc0'}]);
       });
@@ -256,8 +256,7 @@ A.ngDirectiveDef = ɵngcc0.ɵdefineDirective({type:A,selectors:[['','a','']],fac
             createTestRenderer([CORE_FILE], {isCore: true});
         renderer.renderProgram(program, decorationAnalyses, switchMarkerAnalyses);
         const addDefinitionsSpy = renderer.addDefinitions as jasmine.Spy;
-        expect(addDefinitionsSpy.calls.first().args[2])
-            .toContain(`/*@__PURE__*/ setClassMetadata(`);
+        expect(addDefinitionsSpy.calls.first().args[2]).toContain(`/*@__PURE__*/setClassMetadata(`);
         const addImportsSpy = renderer.addImports as jasmine.Spy;
         expect(addImportsSpy.calls.first().args[1]).toEqual([]);
       });

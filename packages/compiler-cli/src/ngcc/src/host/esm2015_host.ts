@@ -357,11 +357,12 @@ export class Esm2015ReflectionHost extends TypeScriptReflectionHost implements N
               `Cannot get the dts file for a class declaration that has no indetifier: ${declaration.getText()} in ${declaration.getSourceFile().fileName}`);
         }
         const dtsDeclaration = this.dtsClassMap.get(declaration.name.text);
-        if (!dtsDeclaration) {
-          throw new Error(
-              `Unable to find matching typings (.d.ts) declaration for ${declaration.name.text} in ${declaration.getSourceFile().fileName}`);
-        }
-        return dtsDeclaration;
+        // if (!dtsDeclaration) {
+        //   throw new Error(
+        //       `Unable to find matching typings (.d.ts) declaration for ${declaration.name.text}
+        //       in ${declaration.getSourceFile().fileName}`);
+        // }
+        return dtsDeclaration || null;
       }
     }
     return null;

@@ -8,7 +8,6 @@
 
 import {ChangeDetectorRef as ViewEngine_ChangeDetectorRef} from '../change_detection/change_detector_ref';
 import {Injector, NullInjector} from '../di/injector';
-import {InjectFlags} from '../di/injector_compatibility';
 import {ComponentFactory as viewEngine_ComponentFactory, ComponentRef as viewEngine_ComponentRef} from '../linker/component_factory';
 import {ElementRef as ViewEngine_ElementRef} from '../linker/element_ref';
 import {NgModuleRef as viewEngine_NgModuleRef} from '../linker/ng_module_factory';
@@ -18,7 +17,7 @@ import {EmbeddedViewRef as viewEngine_EmbeddedViewRef, ViewRef as viewEngine_Vie
 import {Renderer2} from '../render/api';
 
 import {assertDefined, assertGreaterThan, assertLessThan} from './assert';
-import {getOrCreateInjectable, getParentInjectorLocation} from './di';
+import {NodeInjector, getParentInjectorLocation} from './di';
 import {addToViewTree, createEmbeddedViewAndNode, createLContainer, renderEmbeddedTemplate} from './instructions';
 import {ACTIVE_INDEX, LContainer, NATIVE, VIEWS} from './interfaces/container';
 import {RenderFlags} from './interfaces/definition';
@@ -152,17 +151,6 @@ export function injectViewContainerRef(
   const previousTNode =
       getPreviousOrParentTNode() as TElementNode | TElementContainerNode | TContainerNode;
   return createContainerRef(ViewContainerRefToken, ElementRefToken, previousTNode, getViewData());
-}
-
-export class NodeInjector implements Injector {
-  constructor(
-      private _tNode: TElementNode|TContainerNode|TElementContainerNode,
-      private _hostView: LViewData) {}
-
-  get(token: any, notFoundValue?: any): any {
-    return getOrCreateInjectable(
-        this._tNode, this._hostView, token, InjectFlags.Default, notFoundValue);
-  }
 }
 
 /**
