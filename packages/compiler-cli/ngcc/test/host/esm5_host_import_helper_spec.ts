@@ -14,7 +14,7 @@ import {getDeclaration} from '../../../src/ngtsc/testing';
 import {loadFakeCore, loadTestFiles, loadTsLib} from '../../../test/helpers';
 import {Esm5ReflectionHost} from '../../src/host/esm5_host';
 import {MockLogger} from '../helpers/mock_logger';
-import {convertToDirectTsLibImport, makeTestBundleProgram} from '../helpers/utils';
+import {convertToDirectTsLibImport, convertToInlineTsLib, makeTestBundleProgram} from '../helpers/utils';
 
 import {expectTypeValueReferencesForParameters} from './util';
 
@@ -132,14 +132,16 @@ export { SomeDirective };
       ];
 
       const DIRECT_IMPORT_FILES = convertToDirectTsLibImport(NAMESPACED_IMPORT_FILES);
+      const INLINE_FILES = convertToInlineTsLib(NAMESPACED_IMPORT_FILES);
 
       FILES = {
         'namespaced': NAMESPACED_IMPORT_FILES,
         'direct import': DIRECT_IMPORT_FILES,
+        'inline': INLINE_FILES,
       };
     });
 
-    ['namespaced', 'direct import'].forEach(label => {
+    ['namespaced', 'direct import', 'inline'].forEach(label => {
       describe(`[${label}]`, () => {
         beforeEach(() => {
           const fs = getFileSystem();

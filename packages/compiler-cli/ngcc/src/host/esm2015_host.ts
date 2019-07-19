@@ -576,10 +576,9 @@ export class Esm2015ReflectionHost extends TypeScriptReflectionHost implements N
     const decorators: Decorator[] = [];
     const helperCalls = this.getHelperCallsForClass(symbol, '__decorate');
     helperCalls.forEach(helperCall => {
-      const {classDecorators} =
-          this.reflectDecoratorsFromHelperCall(helperCall, makeClassTargetFilter(symbol.name));
-      classDecorators.filter(decorator => this.isFromCore(decorator))
-          .forEach(decorator => decorators.push(decorator));
+      const {classDecorateCalls} =
+          this.reflectDecorateCallsFromHelperCall(helperCall, makeClassTargetFilter(symbol.name));
+      decorators.push(...extractDecorators(classDecorateCalls));
     });
     return decorators.length ? decorators : null;
   }
@@ -729,14 +728,14 @@ export class Esm2015ReflectionHost extends TypeScriptReflectionHost implements N
     const memberDecoratorMap = new Map<string, Decorator[]>();
     const helperCalls = this.getHelperCallsForClass(classSymbol, '__decorate');
     helperCalls.forEach(helperCall => {
-      const {memberDecorators} = this.reflectDecoratorsFromHelperCall(
+      const {memberDecoratorCalls} = this.reflectDecorateCallsFromHelperCall(
           helperCall, makeMemberTargetFilter(classSymbol.name));
-      memberDecorators.forEach((decorators, memberName) => {
+      memberDecoratorCalls.forEach((decorateCalls, memberName) => {
         if (memberName) {
           const memberDecorators =
               memberDecoratorMap.has(memberName) ? memberDecoratorMap.get(memberName) ! : [];
-          const coreDecorators = decorators.filter(decorator => this.isFromCore(decorator));
-          memberDecoratorMap.set(memberName, memberDecorators.concat(coreDecorators));
+          const decorators = extractDecorators(decorateCalls);
+          memberDecoratorMap.set(memberName, memberDecorators.concat(decorators));
         }
       });
     });
@@ -750,71 +749,104 @@ export class Esm2015ReflectionHost extends TypeScriptReflectionHost implements N
    * @returns a mapping from member name to decorators, where the key is either the name of the
    * member or `undefined` if it refers to decorators on the class as a whole.
    */
-  protected reflectDecoratorsFromHelperCall(
+  protected reflectDecorateCallsFromHelperCall(
       helperCall: ts.CallExpression, targetFilter: TargetFilter):
-      {classDecorators: Decorator[], memberDecorators: Map<string, Decorator[]>} {
-    const classDecorators: Decorator[] = [];
-    const memberDecorators = new Map<string, Decorator[]>();
+      {classDecorateCalls: DecorateCall[], memberDecoratorCalls: Map<string, DecorateCall[]>} {
+    const classDecoratorCalls: DecorateCall[] = [];
+    const memberDecoratorCalls = new Map<string, DecorateCall[]>();
 
     // First check that the `target` argument is correct
     if (targetFilter(helperCall.arguments[1])) {
       // Grab the `decorators` argument which should be an array of calls
       const decoratorCalls = helperCall.arguments[0];
+
+      // Determine the name of the decorated member, or `undefined` for class decorators
+      const keyArg = helperCall.arguments[2];
+      const keyName = keyArg && ts.isStringLiteral(keyArg) ? keyArg.text : undefined;
+
       if (decoratorCalls && ts.isArrayLiteralExpression(decoratorCalls)) {
         decoratorCalls.elements.forEach(element => {
           // We only care about those elements that are actual calls
           if (ts.isCallExpression(element)) {
-            const decorator = this.reflectDecoratorCall(element);
-            if (decorator) {
-              const keyArg = helperCall.arguments[2];
-              const keyName = keyArg && ts.isStringLiteral(keyArg) ? keyArg.text : undefined;
+            const decorateCall = this.reflectDecorateCall(element);
+            if (decorateCall !== null) {
               if (keyName === undefined) {
-                classDecorators.push(decorator);
+                classDecoratorCalls.push(decorateCall);
               } else {
-                const decorators =
-                    memberDecorators.has(keyName) ? memberDecorators.get(keyName) ! : [];
-                decorators.push(decorator);
-                memberDecorators.set(keyName, decorators);
+                const decorateCalls =
+                    memberDecoratorCalls.has(keyName) ? memberDecoratorCalls.get(keyName) ! : [];
+                decorateCalls.push(decorateCall);
+                memberDecoratorCalls.set(keyName, decorateCalls);
               }
             }
           }
         });
       }
     }
-    return {classDecorators, memberDecorators};
+    return {classDecorateCalls: classDecoratorCalls, memberDecoratorCalls};
   }
 
   /**
-   * Extract the decorator information from a call to a decorator as a function.
-   * This happens when the decorators has been used in a `__decorate` helper call.
-   * For example:
+   * Extract the details of a call within a `__decorate` helper call. For example, given the
+   * following code:
    *
    * ```
    * __decorate([
    *   Directive({ selector: '[someDirective]' }),
+   *   tslib_1.__param(2, Inject(INJECTED_TOKEN)),
+   *   tslib_1.__metadata("design:paramtypes", [ViewContainerRef, TemplateRef, String])
    * ], SomeDirective);
    * ```
    *
-   * Here the `Directive` decorator is decorating `SomeDirective` and the options for
-   * the decorator are passed as arguments to the `Directive()` call.
+   * it can be seen that there are calls to regular decorators (the `Directive`) and calls into
+   * `tslib` functions which have been inserted by TypeScript. Therefore, this function classifies
+   * a call to correspond with
+   *   1. a real decorator like `Directive` above, or
+   *   2. a decorated parameter, corresponding with `__param` calls from `tslib`, or
+   *   3. generic metadata attached to the decorated target, corresponding with `__metadata` calls
+   *      from `tslib`
    *
    * @param call the call to the decorator.
-   * @returns a decorator containing the reflected information, or null if the call
-   * is not a valid decorator call.
+   * @returns an object that indicates which of the three categories the call represents, together
+   * with the reflected information of the call, or null if the call is not a valid decorate call.
    */
-  protected reflectDecoratorCall(call: ts.CallExpression): Decorator|null {
+  protected reflectDecorateCall(call: ts.CallExpression): DecorateCall|null {
     const decoratorExpression = call.expression;
     if (isDecoratorIdentifier(decoratorExpression)) {
       // We found a decorator!
       const decoratorIdentifier =
           ts.isIdentifier(decoratorExpression) ? decoratorExpression : decoratorExpression.name;
-      return {
-        name: decoratorIdentifier.text,
-        identifier: decoratorIdentifier,
-        import: this.getImportOfIdentifier(decoratorIdentifier),
-        node: call,
-        args: Array.from(call.arguments)
-      };
+      switch (decoratorIdentifier.text) {
+        case '__metadata':
+          if (call.arguments.length < 2) {
+            return null;
+          }
+          return {
+            type: 'metadata',
+            key: call.arguments[0],
+            value: call.arguments[1],
+          };
+        case '__param':
+          if (call.arguments.length < 2) {
+            return null;
+          }
+          return {
+            type: 'param',
+            index: call.arguments[0],
+            decorator: call.arguments[1],
+          };
+        default:
+          return {
+            type: 'decorator',
+            decorator: {
+              name: decoratorIdentifier.text,
+              identifier: decoratorIdentifier,
+              import: this.getImportOfIdentifier(decoratorIdentifier),
+              node: call,
+              args: Array.from(call.arguments)
+            },
+          };
+      }
     }
     return null;
   }
@@ -1158,33 +1190,28 @@ export class Esm2015ReflectionHost extends TypeScriptReflectionHost implements N
         parameterNodes.map(() => ({typeExpression: null, decorators: null}));
     const helperCalls = this.getHelperCallsForClass(classSymbol, '__decorate');
     helperCalls.forEach(helperCall => {
-      const {classDecorators} =
-          this.reflectDecoratorsFromHelperCall(helperCall, makeClassTargetFilter(classSymbol.name));
-      classDecorators.forEach(call => {
-        switch (call.name) {
-          case '__metadata':
-            const metadataArg = call.args && call.args[0];
-            const typesArg = call.args && call.args[1];
-            const isParamTypeDecorator = metadataArg && ts.isStringLiteral(metadataArg) &&
-                metadataArg.text === 'design:paramtypes';
-            const types = typesArg && ts.isArrayLiteralExpression(typesArg) && typesArg.elements;
+      const {classDecorateCalls} = this.reflectDecorateCallsFromHelperCall(
+          helperCall, makeClassTargetFilter(classSymbol.name));
+      classDecorateCalls.forEach(call => {
+        switch (call.type) {
+          case 'metadata':
+            const isParamTypeDecorator =
+                call.key && ts.isStringLiteral(call.key) && call.key.text === 'design:paramtypes';
+            const types = ts.isArrayLiteralExpression(call.value) && call.value.elements;
             if (isParamTypeDecorator && types) {
               types.forEach((type, index) => parameters[index].typeExpression = type);
             }
             break;
-          case '__param':
-            const paramIndexArg = call.args && call.args[0];
-            const decoratorCallArg = call.args && call.args[1];
-            const paramIndex = paramIndexArg && ts.isNumericLiteral(paramIndexArg) ?
-                parseInt(paramIndexArg.text, 10) :
-                NaN;
-            const decorator = decoratorCallArg && ts.isCallExpression(decoratorCallArg) ?
-                this.reflectDecoratorCall(decoratorCallArg) :
+          case 'param':
+            const paramIndex =
+                ts.isNumericLiteral(call.index) ? parseInt(call.index.text, 10) : NaN;
+            const decorateCall = ts.isCallExpression(call.decorator) ?
+                this.reflectDecorateCall(call.decorator) :
                 null;
-            if (!isNaN(paramIndex) && decorator) {
+            if (!isNaN(paramIndex) && decorateCall !== null && decorateCall.type === 'decorator') {
               const decorators = parameters[paramIndex].decorators =
                   parameters[paramIndex].decorators || [];
-              decorators.push(decorator);
+              decorators.push(decorateCall.decorator);
             }
             break;
         }
@@ -1364,6 +1391,49 @@ export type ParamInfo = {
   decorators: Decorator[] | null,
   typeExpression: ts.Expression | null
 };
+
+/**
+ * Represents a call to `tslib.__metadata` as present in `tslib.__decorate` calls. This is a
+ * synthetic decorator inserted by TypeScript that contains reflection information about the
+ * target of the decorator, i.e. the class or property.
+ */
+export interface DecoratorMetadata {
+  type: 'metadata';
+  key: ts.Node;
+  value: ts.Node;
+}
+
+/**
+ * Represents a call to `tslib.__param` as present in `tslib.__decorate` calls. This contains
+ * information on any decorators were applied to a certain parameter.
+ */
+export interface DecoratedParam {
+  type: 'param';
+  index: ts.Node;
+  decorator: ts.Node;
+}
+
+/**
+ * Represents an actual decorator as it originally appeared in the source code.
+ */
+export interface DecoratorCall {
+  type: 'decorator';
+  decorator: Decorator;
+}
+
+export type DecorateCall = DecoratorMetadata | DecoratedParam | DecoratorCall;
+
+export function extractDecorators(decorateCalls: DecorateCall[]): Decorator[] {
+  return decorateCalls.filter(isDecoratorCall).map(decoratorCall => decoratorCall.decorator);
+}
+
+/**
+ * Determines whether the decorate call corresponds with an actual decorator as it appeared in the
+ * original source.
+ */
+export function isDecoratorCall(decorateCall: DecorateCall): decorateCall is DecoratorCall {
+  return decorateCall.type === 'decorator';
+}
 
 /**
  * A statement node that represents an assignment.
