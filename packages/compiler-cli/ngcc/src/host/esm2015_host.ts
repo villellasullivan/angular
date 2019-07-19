@@ -12,7 +12,7 @@ import {AbsoluteFsPath} from '../../../src/ngtsc/file_system';
 import {ClassDeclaration, ClassMember, ClassMemberKind, ClassSymbol, CtorParameter, Declaration, Decorator, Import, TypeScriptReflectionHost, isDecoratorIdentifier, reflectObjectLiteral} from '../../../src/ngtsc/reflection';
 import {Logger} from '../logging/logger';
 import {BundleProgram} from '../packages/bundle_program';
-import {findAll, getNameText, hasNameIdentifier, isDefined} from '../utils';
+import {findAll, getNameText, hasNameIdentifier, isDefined, stripDollarSuffix} from '../utils';
 
 import {ModuleWithProvidersFunction, NgccReflectionHost, PRE_R3_MARKER, SwitchableVariableDeclaration, isSwitchableVariableDeclaration} from './ngcc_host';
 
@@ -816,7 +816,7 @@ export class Esm2015ReflectionHost extends TypeScriptReflectionHost implements N
       // We found a decorator!
       const decoratorIdentifier =
           ts.isIdentifier(decoratorExpression) ? decoratorExpression : decoratorExpression.name;
-      switch (decoratorIdentifier.text) {
+      switch (stripDollarSuffix(decoratorIdentifier.text)) {
         case '__metadata':
           if (call.arguments.length < 2) {
             return null;
@@ -1493,10 +1493,10 @@ export function getPropertyValueFromSymbol(propSymbol: ts.Symbol): ts.Expression
  */
 function getCalleeName(call: ts.CallExpression): string|null {
   if (ts.isIdentifier(call.expression)) {
-    return call.expression.text;
+    return stripDollarSuffix(call.expression.text);
   }
   if (ts.isPropertyAccessExpression(call.expression)) {
-    return call.expression.name.text;
+    return stripDollarSuffix(call.expression.name.text);
   }
   return null;
 }
