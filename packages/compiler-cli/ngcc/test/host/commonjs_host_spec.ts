@@ -951,21 +951,16 @@ exports.ExternalModule = ExternalModule;
           expect(decorators[0]).toEqual(jasmine.objectContaining({name: 'Directive'}));
         });
 
-        it('should use `getImportOfIdentifier()` to retrieve import info', () => {
+        it('should have import information on decorators', () => {
           loadTestFiles([SOME_DIRECTIVE_FILE]);
           const {program, host: compilerHost} = makeTestBundleProgram(SOME_DIRECTIVE_FILE.name);
           const host = new CommonJsReflectionHost(new MockLogger(), false, program, compilerHost);
-          const mockImportInfo: Import = {from: '@angular/core', name: 'Directive'};
-          const spy = spyOn(host, 'getImportOfIdentifier').and.returnValue(mockImportInfo);
           const classNode = getDeclaration(
               program, SOME_DIRECTIVE_FILE.name, 'SomeDirective', isNamedVariableDeclaration);
           const decorators = host.getDecoratorsOfDeclaration(classNode) !;
 
           expect(decorators.length).toEqual(1);
-          expect(decorators[0].import).toBe(mockImportInfo);
-
-          const typeIdentifier = spy.calls.mostRecent().args[0] as ts.Identifier;
-          expect(typeIdentifier.text).toBe('Directive');
+          expect(decorators[0].import).toEqual({from: '@angular/core', name: 'Directive'});
         });
 
         describe('(returned decorators `args`)', () => {
@@ -1185,22 +1180,17 @@ exports.ExternalModule = ExternalModule;
           expect(decorators[0]).toEqual(jasmine.objectContaining({name: 'Directive'}));
         });
 
-        it('should use `getImportOfIdentifier()` to retrieve import info', () => {
+        it('should have import information on decorators', () => {
           loadTestFiles([SOME_DIRECTIVE_FILE]);
           const {program, host: compilerHost} = makeTestBundleProgram(SOME_DIRECTIVE_FILE.name);
           const host = new CommonJsReflectionHost(new MockLogger(), false, program, compilerHost);
-          const mockImportInfo = { name: 'mock', from: '@angular/core' } as Import;
-          const spy = spyOn(host, 'getImportOfIdentifier').and.returnValue(mockImportInfo);
 
           const classNode = getDeclaration(
               program, SOME_DIRECTIVE_FILE.name, 'SomeDirective', isNamedVariableDeclaration);
           const decorators = host.getDecoratorsOfDeclaration(classNode) !;
 
           expect(decorators.length).toEqual(1);
-          expect(decorators[0].import).toBe(mockImportInfo);
-
-          const typeIdentifier = spy.calls.mostRecent().args[0] as ts.Identifier;
-          expect(typeIdentifier.text).toBe('Directive');
+          expect(decorators[0].import).toEqual({name: 'Directive', from: '@angular/core'});
         });
 
         describe('(returned prop decorators `args`)', () => {
