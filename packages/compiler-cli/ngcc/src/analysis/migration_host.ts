@@ -54,7 +54,7 @@ export class DefaultMigrationHost implements MigrationHost {
     }
 
     const analyzedClass = analyzedFile.analyzedClasses.find(c => c.declaration === clazz);
-    if (analyzedClass === undefined || analyzedClass.decorators === null) {
+    if (analyzedClass === undefined) {
       return null;
     }
 

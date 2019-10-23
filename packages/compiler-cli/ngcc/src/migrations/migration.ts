@@ -58,7 +58,7 @@ export interface MigrationHost {
   /**
    * Determines whether the provided class in within scope of the entry-point that is currently
    * being compiled.
-   * @param clazz the class for which to be determine whether it is within the current entry-point.
+   * @param clazz the class for which to determine whether it is within the current entry-point.
    * @returns true if the file is part of the compiled entry-point, false otherwise.
    */
   isInScope(clazz: ClassDeclaration): boolean;
