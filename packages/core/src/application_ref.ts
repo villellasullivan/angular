@@ -11,7 +11,7 @@ import {share} from 'rxjs/operators';
 
 import {ApplicationInitStatus} from './application_init';
 import {APP_BOOTSTRAP_LISTENER, PLATFORM_INITIALIZER} from './application_tokens';
-import {getCompilerFacade} from './compiler/compiler_facade';
+import {getCompilerFacade, setCompilerOptions} from './compiler/compiler_facade';
 import {Console} from './console';
 import {Injectable, InjectionToken, Injector, StaticProvider} from './di';
 import {INJECTOR_SCOPE} from './di/scope';
@@ -56,6 +56,12 @@ export function compileNgModuleFactory__POST_R3__<M>(
     injector: Injector, options: CompilerOptions,
     moduleType: Type<M>): Promise<NgModuleFactory<M>> {
   ngDevMode && assertNgModuleType(moduleType);
+
+  // Configure the compiler to use the provided options. This call may fail when multiple modules
+  // are bootstrapped with incompatible options, as a component can only be compiled according to
+  // a single set of options.
+  setCompilerOptions(options);
+
   const moduleFactory = new R3NgModuleFactory(moduleType);
 
   if (isComponentResourceResolutionQueueEmpty()) {

@@ -7,7 +7,7 @@
  */
 
 
-import {CompilerFacade, CoreEnvironment, ExportedCompilerFacade, R3ComponentMetadataFacade, R3DependencyMetadataFacade, R3DirectiveMetadataFacade, R3FactoryDefMetadataFacade, R3InjectableMetadataFacade, R3InjectorMetadataFacade, R3NgModuleMetadataFacade, R3PipeMetadataFacade, R3QueryMetadataFacade, StringMap, StringMapWithRename} from './compiler_facade_interface';
+import {CompilerFacade, CompilerFacadeOptions, CoreEnvironment, ExportedCompilerFacade, R3ComponentMetadataFacade, R3DependencyMetadataFacade, R3DirectiveMetadataFacade, R3FactoryDefMetadataFacade, R3InjectableMetadataFacade, R3InjectorMetadataFacade, R3NgModuleMetadataFacade, R3PipeMetadataFacade, R3QueryMetadataFacade, StringMap, StringMapWithRename, ViewEncapsulation} from './compiler_facade_interface';
 import {ConstantPool} from './constant_pool';
 import {HostBinding, HostListener, Input, Output, Type} from './core';
 import {Identifiers} from './identifiers';
@@ -26,6 +26,7 @@ import {ParsedHostBindings, compileComponentFromMetadata, compileDirectiveFromMe
 import {makeBindingParser, parseTemplate} from './render3/view/template';
 import {ResourceLoader} from './resource_loader';
 import {DomElementSchemaRegistry} from './schema/dom_element_schema_registry';
+import {global} from './util';
 
 export class CompilerFacadeImpl implements CompilerFacade {
   R3ResolvedDependencyType = R3ResolvedDependencyType as any;
@@ -122,13 +123,15 @@ export class CompilerFacadeImpl implements CompilerFacade {
     // The ConstantPool is a requirement of the JIT'er.
     const constantPool = new ConstantPool();
 
+    const preserveWhitespaces = facade.preserveWhitespaces !== undefined ?
+        facade.preserveWhitespaces :
+        getDefaultPreserveWhitespace();
     const interpolationConfig = facade.interpolation ?
         InterpolationConfig.fromArray(facade.interpolation) :
         DEFAULT_INTERPOLATION_CONFIG;
     // Parse the template and check for errors.
-    const template = parseTemplate(
-        facade.template, sourceMapUrl,
-        {preserveWhitespaces: facade.preserveWhitespaces, interpolationConfig});
+    const template =
+        parseTemplate(facade.template, sourceMapUrl, {preserveWhitespaces, interpolationConfig});
     if (template.errors !== undefined) {
       const errors = template.errors.map(err => err.toString()).join(', ');
       throw new Error(`Errors during JIT compilation of template for ${facade.name}: ${errors}`);
@@ -143,7 +146,8 @@ export class CompilerFacadeImpl implements CompilerFacade {
       template,
       wrapDirectivesAndPipesInClosure: false,
       styles: [...facade.styles, ...template.styles],
-      encapsulation: facade.encapsulation as any,
+      encapsulation: facade.encapsulation !== undefined ? facade.encapsulation :
+                                                          getDefaultEncapsulation(),
       interpolation: interpolationConfig,
       changeDetection: facade.changeDetection,
       animations: facade.animations != null ? new WrappedNodeExpr(facade.animations) : null,
@@ -367,4 +371,35 @@ function parseInputOutputs(values: string[]): StringMap {
 export function publishFacade(global: any) {
   const ng: ExportedCompilerFacade = global.ng || (global.ng = {});
   ng.ɵcompilerFacade = new CompilerFacadeImpl();
+}
+
+
+function getDefaultPreserveWhitespace(): boolean {
+  const options = getCompilerOptions();
+  if (options !== undefined && options.preserveWhitespaces !== undefined) {
+    return options.preserveWhitespaces;
+  } else {
+    return false;
+  }
+}
+
+function getDefaultEncapsulation(): ViewEncapsulation {
+  const options = getCompilerOptions();
+  if (options !== undefined && options.defaultEncapsulation !== undefined) {
+    return options.defaultEncapsulation;
+  } else {
+    return ViewEncapsulation.Emulated;
+  }
+}
+
+function getCompilerOptions(): CompilerFacadeOptions|undefined {
+  const globalNg: ExportedCompilerFacade|undefined = global['ng'];
+  return globalNg && globalNg.ɵcompilerOptions;
+}
+
+export function resetCompilerOptions(): void {
+  const globalNg: ExportedCompilerFacade = global['ng'];
+  if (globalNg) {
+    globalNg.ɵcompilerOptions = undefined;
+  }
 }

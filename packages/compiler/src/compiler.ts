@@ -102,7 +102,7 @@ export {compilePipeFromMetadata, R3PipeMetadata} from './render3/r3_pipe_compile
 export {makeBindingParser, parseTemplate, ParseTemplateOptions} from './render3/view/template';
 export {R3Reference} from './render3/util';
 export {compileComponentFromMetadata, compileDirectiveFromMetadata, parseHostBindings, ParsedHostBindings, verifyHostBindings} from './render3/view/compiler';
-export {publishFacade} from './jit_compiler_facade';
+export {publishFacade, resetCompilerOptions} from './jit_compiler_facade';
 // This file only reexports content of the `src` folder. Keep it that way.
 
 // This function call has a global side effects and publishes the compiler into global namespace for
