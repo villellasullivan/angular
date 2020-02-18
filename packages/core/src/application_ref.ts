@@ -11,7 +11,7 @@ import {share} from 'rxjs/operators';
 
 import {ApplicationInitStatus} from './application_init';
 import {APP_BOOTSTRAP_LISTENER, PLATFORM_INITIALIZER} from './application_tokens';
-import {getCompilerFacade, setCompilerOptions} from './compiler/compiler_facade';
+import {getCompilerFacade} from './compiler/compiler_facade';
 import {Console} from './console';
 import {Injectable, InjectionToken, Injector, StaticProvider} from './di';
 import {INJECTOR_SCOPE} from './di/scope';
@@ -29,6 +29,7 @@ import {isComponentResourceResolutionQueueEmpty, resolveComponentResources} from
 import {assertNgModuleType} from './render3/assert';
 import {ComponentFactory as R3ComponentFactory} from './render3/component_ref';
 import {setLocaleId} from './render3/i18n';
+import {setJitOptions} from './render3/jit/jit_options';
 import {NgModuleFactory as R3NgModuleFactory} from './render3/ng_module_ref';
 import {publishDefaultGlobalUtils as _publishDefaultGlobalUtils} from './render3/util/global_utils';
 import {Testability, TestabilityRegistry} from './testability/testability';
@@ -60,7 +61,7 @@ export function compileNgModuleFactory__POST_R3__<M>(
   // Configure the compiler to use the provided options. This call may fail when multiple modules
   // are bootstrapped with incompatible options, as a component can only be compiled according to
   // a single set of options.
-  setCompilerOptions(options);
+  setJitOptions(options);
 
   const moduleFactory = new R3NgModuleFactory(moduleType);
 

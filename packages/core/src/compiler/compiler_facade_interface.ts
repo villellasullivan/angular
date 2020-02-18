@@ -22,15 +22,7 @@
  * ```
  */
 
-export interface CompilerFacadeOptions {
-  defaultEncapsulation?: ViewEncapsulation;
-  preserveWhitespaces?: boolean;
-}
-
-export interface ExportedCompilerFacade {
-  ɵcompilerFacade?: CompilerFacade;
-  ɵcompilerOptions?: CompilerFacadeOptions;
-}
+export interface ExportedCompilerFacade { ɵcompilerFacade: CompilerFacade; }
 
 export interface CompilerFacade {
   compilePipe(angularCoreEnv: CoreEnvironment, sourceMapUrl: string, meta: R3PipeMetadataFacade):
@@ -155,12 +147,12 @@ export interface R3DirectiveMetadataFacade {
 
 export interface R3ComponentMetadataFacade extends R3DirectiveMetadataFacade {
   template: string;
-  preserveWhitespaces: boolean|undefined;
+  preserveWhitespaces: boolean;
   animations: any[]|undefined;
   pipes: Map<string, any>;
   directives: {selector: string, expression: any}[];
   styles: string[];
-  encapsulation: ViewEncapsulation|undefined;
+  encapsulation: ViewEncapsulation;
   viewProviders: Provider[]|null;
   interpolation?: [string, string];
   changeDetection?: ChangeDetectionStrategy;
