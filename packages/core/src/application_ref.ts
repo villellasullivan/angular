@@ -58,10 +58,16 @@ export function compileNgModuleFactory__POST_R3__<M>(
     moduleType: Type<M>): Promise<NgModuleFactory<M>> {
   ngDevMode && assertNgModuleType(moduleType);
 
+  const compilerOptions = injector.get(COMPILER_OPTIONS, []).concat(options);
+
   // Configure the compiler to use the provided options. This call may fail when multiple modules
   // are bootstrapped with incompatible options, as a component can only be compiled according to
   // a single set of options.
-  setJitOptions(options);
+  setJitOptions({
+    defaultEncapsulation:
+        _lastDefined(compilerOptions.map(options => options.defaultEncapsulation)),
+    preserveWhitespaces: _lastDefined(compilerOptions.map(options => options.preserveWhitespaces)),
+  });
 
   const moduleFactory = new R3NgModuleFactory(moduleType);
 
@@ -69,7 +75,6 @@ export function compileNgModuleFactory__POST_R3__<M>(
     return Promise.resolve(moduleFactory);
   }
 
-  const compilerOptions = injector.get(COMPILER_OPTIONS, []).concat(options);
   const compilerProviders = _mergeArrays(compilerOptions.map(o => o.providers !));
 
   // In case there are no compiler providers, we just return the module factory as
@@ -753,6 +758,15 @@ function remove<T>(list: T[], el: T): void {
   if (index > -1) {
     list.splice(index, 1);
   }
+}
+
+function _lastDefined<T>(args: T[]): T|undefined {
+  for (let i = args.length - 1; i >= 0; i--) {
+    if (args[i] !== undefined) {
+      return args[i];
+    }
+  }
+  return undefined;
 }
 
 function _mergeArrays(parts: any[][]): any[] {

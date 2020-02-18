@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {Component, NgModule, PlatformRef, ViewEncapsulation, destroyPlatform} from '@angular/core';
+import {COMPILER_OPTIONS, Component, NgModule, ViewEncapsulation, destroyPlatform} from '@angular/core';
 import {BrowserModule} from '@angular/platform-browser';
 import {platformBrowserDynamic} from '@angular/platform-browser-dynamic';
 import {onlyInIvy, withBody} from '@angular/private/testing';
@@ -85,6 +85,20 @@ describe('bootstrap', () => {
          ngModuleRef.destroy();
        }));
 
+    it('should allow setting defaultEncapsulation using compiler option',
+       withBody('<my-app></my-app>', async() => {
+         const TestModule = createComponentAndModule();
+
+         const ngModuleRef = await platformBrowserDynamic([{
+                               provide: COMPILER_OPTIONS,
+                               useValue: {defaultEncapsulation: ViewEncapsulation.None},
+                               multi: true
+                             }]).bootstrapModule(TestModule);
+         expect(document.body.innerHTML).toContain('<span>');
+         expect(document.body.innerHTML).not.toContain('_ngcontent-');
+         ngModuleRef.destroy();
+       }));
+
     it('should prefer encapsulation on component over bootstrap option',
        withBody('<my-app></my-app>', async() => {
          const TestModule = createComponentAndModule({encapsulation: ViewEncapsulation.Emulated});
@@ -108,8 +122,20 @@ describe('bootstrap', () => {
        withBody('<my-app></my-app>', async() => {
          const TestModule = createComponentAndModule();
 
+         const ngModuleRef = await platformBrowserDynamic().bootstrapModule(
+             TestModule, {preserveWhitespaces: true});
+         expect(document.body.innerHTML).toContain('a    b');
+         ngModuleRef.destroy();
+       }));
+
+    it('should allow setting preserveWhitespaces using compiler option',
+       withBody('<my-app></my-app>', async() => {
+         const TestModule = createComponentAndModule();
+
          const ngModuleRef =
-             await platformBrowserDynamic().bootstrapModule(TestModule, {preserveWhitespaces: true});
+             await platformBrowserDynamic([
+               {provide: COMPILER_OPTIONS, useValue: {preserveWhitespaces: true}, multi: true}
+             ]).bootstrapModule(TestModule);
          expect(document.body.innerHTML).toContain('a    b');
          ngModuleRef.destroy();
        }));
@@ -118,8 +144,8 @@ describe('bootstrap', () => {
        withBody('<my-app></my-app>', async() => {
          const TestModule = createComponentAndModule({preserveWhitespaces: false});
 
-         const ngModuleRef =
-             await platformBrowserDynamic().bootstrapModule(TestModule, {preserveWhitespaces: true});
+         const ngModuleRef = await platformBrowserDynamic().bootstrapModule(
+             TestModule, {preserveWhitespaces: true});
          expect(document.body.innerHTML).toContain('a b');
          ngModuleRef.destroy();
        }));
